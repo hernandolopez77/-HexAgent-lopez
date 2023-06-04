@@ -4,7 +4,6 @@ const crypto = require('crypto');
 
 
 let cache = {};
-
 function boardScore(board, player) {
   let path0 = boardPath(board);
   let score = 0;
@@ -24,7 +23,6 @@ function boardScore(board, player) {
   }
   return player === '1' ? score : -score;
 }
-
 function boardPath(board) {
   let player = '1';
   let size = board.length;
@@ -192,23 +190,28 @@ function pushIfAny(result, board, player, row, col) {
     }
   }
 }
+let board = [[0, 0, '2'],
+[0, 0, '2'],
+['2', '2', '2']];
 
+console.log(boardPath(board))
+// console.log(transpose(board))
+// console.log(boardPath(transpose(board)))
+// let id = (boardPath(transpose(board)))[1]
+// const row = Math.floor(id / 3); // Extraer la fila
+// const column = id % 3; // Extraer la columna
+// const osea = column * 3 + row; // Generar el ID
 
+// console.log("enrealidad quiso decir: ", column, row, osea)
 module.exports = { boardScore, boardPath };
 
-/*
-board = [[0, 0, 0],
-[0, '2', 0],
-['1', '1', '1']];
-console.log(boardPath(board));
-*/
 
-/*
-board = [[0, 0, 0],
-[0, '2', '1'],
-['1', '1', 0]];
-console.log(boardScore(board, '2'));  // Debe dar 3 - 1 = 2
 
+
+
+
+//  // Debe dar 3 - 1 = 2
+/*
 board = [[0, 0, '1'],
 [0, '2', 0],
 ['1', 0, 0]];
