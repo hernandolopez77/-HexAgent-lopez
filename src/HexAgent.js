@@ -1,6 +1,7 @@
 const Agent = require('ai-agents').Agent;
 const boardS = require('./boardScore');
 const transposeHex = require('./transposeHex');
+const cloneDeep = require('lodash/cloneDeep');
 
 class HexAgent extends Agent {
   constructor(value) {
@@ -46,27 +47,6 @@ function getEmptyHex(board) {
 }
 
 
-
-class Arbol {
-  constructor(id, padre = null, hijos = [], tablero) {
-    this.id = id
-    this.padre = padre
-    this.hijos = hijos
-    this.tablero = tablero
-  }
-
-  addChild(id, tablero) {
-    const newChild = new Arbol(id)
-    newChild.padre = this
-    newChild.tablero = tablero
-    this.hijos.push(newChild)
-  }
-
-
-}
-
-
-
 function moveGame(board, size, available, nTurn) {
   if (nTurn == 0) {
     return [Math.floor(size / 2), Math.floor(size / 2) - 1];
@@ -74,116 +54,159 @@ function moveGame(board, size, available, nTurn) {
     return [Math.floor(size / 2), Math.floor(size / 2)];
   }
 
-
   let profundidad = 7;
-  const arbol = new Arbol("root")
-
 
   if (nTurn % 2 == 0) {
-    arbol.tablero = board
-    crearArbol(arbol, 1, profundidad)
-    let movimiento = minmax(arbol, profundidad, true, '1')
-    return [Math.floor(movimiento / board.length), movimiento % board.length];
+    let [evaluation, bestMove] = minmax(board, profundidad, true)
+    let [row, col] = bestMove;
+    return [row, col];
   } else {
-    arbol.tablero = transposeHex(board)
-    crearArbol(arbol, 2, profundidad)
-    let movimiento = minmax(arbol, profundidad, true, '2')
-    return [movimiento % board.length, Math.floor(movimiento / board.length)];
+    board = transposeHex(board)
+    let [evaluation, bestMove] = minmax(board, profundidad, true)
+    let [row, col] = bestMove;
+    return [col, row];
   }
 
 }
 
-function crearArbol(arbol, jugador, profundidad) {
-  let tableroHijo = JSON.parse(JSON.stringify(arbol.tablero));
-  let moValidos = boardS.boardPath(arbol.tablero);
-  if (profundidad == 0) {
-    for (let i = 1; i < moValidos.length - 1; i++) {
-      let row = Math.floor(moValidos[i] / arbol.tablero.length)
-      let col = moValidos[i] % arbol.tablero.length
-      tableroHijo[row][col] = '1'
-      arbol.addChild(moValidos[i], tableroHijo)
-      tableroHijo = JSON.parse(JSON.stringify(arbol.tablero))
-    }
-  } else {
-    if (moValidos.length > 2) {
-      if (moValidos.length == 3) {
-        let row = Math.floor(moValidos[1] / arbol.tablero.length)
-        let col = moValidos[1] % arbol.tablero.length
-        tableroHijo[row][col] = '1'
-        arbol.addChild(moValidos[1], tableroHijo)
-      } else {
 
-        crearHijos(moValidos, tableroHijo, arbol)
+function twoBridgesScore(board, player) {
+  let path0 = boardS.boardPath(board);
+  let path1 = boardS.boardPath(transposeHex(board));
+  let twoBridges = 0;
+  let twoBridgesAdversary = 0;
+  path0.forEach(squareId => {
+    let row = Math.floor(squareId / board.length)
+    let col = squareId % board.length
+    if(board[row-1][col+2] === player) twoBridges++;
+    if(board[row+1][col-2] === player) twoBridges++;
+    if(board[row-1][col-1] === player) twoBridges++;
+    if(board[row+1][col+1] === player) twoBridges++;
+    if(board[row+2][col-1] === player) twoBridges++;
+    if(board[row-2][col+1] === player) twoBridges++;
+  })
 
-        for (let i = 0; i < arbol.hijos.length; i++) {
-          const element = arbol.hijos[i];
-          crearArbol(element, jugador, profundidad - 1)
-        }
+  path1.forEach(squareId => {
+    let row = Math.floor(squareId / board.length)
+    let col = squareId % board.length
+    if (board[row-1][col+2] !== player && board[row-1][col+2] !== 0) twoBridgesAdversary++;
+    if (board[row+1][col-2] !== player && board[row+1][col-2] !== 0) twoBridgesAdversary++;
+    if (board[row-1][col-1] !== player && board[row-1][col-1] !== 0) twoBridgesAdversary++;
+    if (board[row+1][col+1] !== player && board[row+1][col+1] !== 0) twoBridgesAdversary++;
+    if (board[row+2][col-1] !== player && board[row+2][col-1] !== 0) twoBridgesAdversary++;
+    if (board[row-2][col+1] !== player && board[row-2][col+1] !== 0) twoBridgesAdversary++;       
+  })
+  score = twoBridges-twoBridgesAdversary;          
+  
+  return player === '1' ? score : -score;
+}
+/*
+
+*/
+let contadorIteraciones = 0;
+function centralControlScore(board, player){
+
+  let path0 = boardS.boardPath(board);
+  let path1 = boardS.boardPath(transposeHex(board));
+
+  // let control = 0;
+  // let controlAdversary = 0;
+
+  // path0.forEach(squareId => {
+  //   let row = Math.floor(squareId / board.length)
+  //   let col = squareId % board.length
+  //   if (row >= 3 && row <= 7 && col >= 3 && col <= 6) control++;
+  // })
+  // path1.forEach(squareId => {
+  //   let row = Math.floor(squareId / board.length)
+  //   let col = squareId % board.length
+  //   if (row >= 3 && row <= 7 && col >= 3 && col <= 6) controlAdversary++;
+  // })
+  // score = control-controlAdversary;          
+  
+  // return player === '1' ? score : -score;
+}
+
+function minmax(board, profundidad, maxplayer, alfa = Number.MIN_SAFE_INTEGER, beta = Number.MAX_SAFE_INTEGER) {
+
+  if(maxplayer){
+    let movements = boardS.boardPath(board)
+    if(movements === null){
+      return [boardS.boardScore(board, '1'), null]
+    }else{
+      if(profundidad === 0 || movements.length === 2){
+        return [boardS.boardScore(board, '1'), null]
       }
     }
+  }else {    
+      let movements = boardS.boardPath(transposeHex(board))
+      if(movements === null){
+        return [boardS.boardScore(board, '2'), null]
+      }else
+        if(profundidad === 0 || movements.length === 2) {
+        return [boardS.boardScore(board, '2'), null];
+      }
+    
   }
-}
+  
 
-function crearHijos(hijos, tableroHijo, padre) {
-  hijos.shift()
-  hijos.pop()
-
-
-  while (hijos.length != 0) {
-    let row = Math.floor(hijos[0] / tableroHijo.length)
-    let col = hijos[0] % tableroHijo.length
-    tableroHijo[row][col] = '1'
-
-    padre.addChild(hijos[0], tableroHijo)
-    tableroHijo = JSON.parse(JSON.stringify(padre.tablero))
-    hijos.shift()
-  }
-}
-
-function minmax(arbol, profundidad, maxplayer, player, alfa = Number.MIN_SAFE_INTEGER, beta = Number.MAX_SAFE_INTEGER) {
-  if (profundidad == 0 || arbol.hijos.length == 0) {
-
-    return boardS.boardScore(arbol.tablero, player)
-  }
-
-  var bestHeur, valminmax
 
   if (maxplayer) {
-    bestHeur = Number.NEGATIVE_INFINITY;
-    let movimiento = arbol.id
-    for (const hijo in arbol.hijos) {
-      valminmax = minmax(arbol.hijos[hijo], profundidad - 1, false, player)
-      if (valminmax >= bestHeur) {
-        movimiento = arbol.hijos[hijo].id
+    let max_eval = Number.NEGATIVE_INFINITY;
+    let bestMove = null;
+    let possibleMoves = boardS.boardPath(board);
+    let startIndex = 1; 
+    let endIndex = possibleMoves.length - 1; 
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const squareId = possibleMoves[i];
+      let row = Math.floor(squareId / board.length)
+      let col = squareId % board.length
+      let temp_board = cloneDeep(board);
+      temp_board[row][col] = '1'
+      let evaluation = minmax(temp_board, profundidad - 1, false, alfa, beta)[0]
+      if(evaluation > max_eval){
+        max_eval = evaluation;
+        bestMove = [row, col];
       }
-      if (valminmax > alfa) {
-        alfa = valminmax;
-      }
+      alfa = Math.max(alfa, evaluation);
       if (beta <= alfa) {
         break;
       }
-      bestHeur = Math.max(valminmax, bestHeur)
     }
-
-    return movimiento
+    return [max_eval, bestMove];    
+ 
   } else {
-    bestHeur = Number.POSITIVE_INFINITY;
-    let movimiento = arbol.id
+    let min_eval = Number.POSITIVE_INFINITY;
+    let bestMove = null;
+    let possibleMoves = boardS.boardPath(transposeHex(board));
+    let startIndex = 1; 
+    let endIndex = possibleMoves.length - 1; 
 
-    for (const hijo in arbol.hijos) {
-      valminmax = minmax(arbol.hijos[hijo], profundidad - 1, true, player)
-      if (valminmax >= bestHeur) {
-        movimiento = arbol.hijos[hijo].id
-      }
-      if (beta > valminmax) {
-        beta = valminmax;
-      }
-      if (beta <= alfa) {
-        break;
-      }
-      bestHeur = Math.max(valminmax, bestHeur)
+    for(let j = startIndex; j < endIndex; j++){
+      let squareId = possibleMoves[j];
+      let row = Math.floor(squareId / board.length)
+      let col = squareId % board.length
+      let newId = col * board.length + row;
+      possibleMoves[j] = newId;
     }
-
-    return movimiento
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const squareId = possibleMoves[i];
+      let row = Math.floor(squareId / board.length)
+      let col = squareId % board.length
+      let temp_board = cloneDeep(board);
+      temp_board[row][col] = '2'
+      let evaluation = minmax(temp_board, profundidad - 1, true, alfa, beta)[0]
+      if (evaluation < min_eval) {
+        min_eval = evaluation;
+        bestMove = [row, col];
+      }
+      beta = Math.min(beta, evaluation);
+      if (beta <= alfa) {
+        break; 
+      }
+    }
+    return [min_eval, bestMove];
   }
 }
