@@ -3,7 +3,6 @@ const HextAgent = require('../HexAgent');//require('./HexAgent');
 const HextAgent2 = require('../HexAgent1');//require('./HexAgent');
 
 
-console.log(HextAgent);
 
 var problemContainer = new HexGame({});
 
